@@ -1,7 +1,7 @@
 ---
 title: "CTA_exercise1_wordfreq"
-author: "Marion Lieutaud"
-date: "1/31/2024"
+author: "HUIYING HU"
+date: "4/2/2025"
 output: html_document
 ---
 
@@ -107,14 +107,14 @@ ggplot(evtsperyr) +
 
 Perhaps unsurprisingly, in the context of the pandemic, the number of recorded bookings for the 2020 Festival is drastically reduced. 
 
-## Tidy the text 
+## Tidy the text 整理文本
 
 Given that these data were obtained from an API that outputs data originally in HTML format, some of the text still contains some HTML and PHP encodings for e.g. bold font or paragraphs. We'll need to get rid of this, as well as other punctuation before analyzing these data.
 
 The below set of commands takes the event descriptions, extracts individual words, and counts the number of times they appear in each of the years covered by our book festival data. 
 
 ```{r}
-#get year and word for every word and date pair in the dataset
+#get year and word for every word and date pair in the dataset每个单词和日期对应的年份和单词
 tidy_des <- evdes %>% 
   mutate(desc = tolower(description)) %>%
   unnest_tokens(word, desc) %>%
@@ -459,8 +459,29 @@ ggplot(edbf_counts_both, aes(year, sum_wom / year_total, group=genre, color=genr
 
 ```{r}
 # show me
+edbf_term_counts$migword <- as.integer(grepl("emigration|immigrant|incomer|migration|transmigrant", 
+                                            x = edbf_term_counts$word))
+
+head(edbf_term_counts)
+```
+```{r}
+edbf_migcounts <- edbf_term_counts %>%
+  group_by(year) %>%
+  mutate(year_total = sum(n)) %>%
+  filter(migword==1) %>%
+  summarise(sum_mig = sum(n),
+            year_total= min(year_total))
 ```
 
+```{r}
+ggplot(edbf_migcounts, aes(year, sum_mig / year_total, group=1)) +
+  geom_line() +
+  xlab("Year") +
+  ylab("% migrant-related words") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = c(0, 0), limits = c(0, NA)) +
+  theme_tufte(base_family = "Helvetica") 
+```
 
 3. Knit your document (click 'Knit' towards the top of your screen) when you've completed your exercise. It should create an html output file. 
 
