@@ -1,7 +1,7 @@
 ---
 title: "CTA_exercise1_wordfreq"
-author: "Marion Lieutaud"
-date: "1/31/2024"
+author: "Siji Rong"
+date: "04/02/2024"
 output: html_document
 ---
 
@@ -64,7 +64,7 @@ edbfdata <- read_csv("https://raw.githubusercontent.com/cjbarrie/RDL-Ed/main/02-
 ## Inspect and filter data 
 
 Our next job is to cut down this dataset to size, including only those columns that we need. But first we can inspect it to see what the existing column names are, and how each variable is coded. To do this we can first call:
-
+我们的下一个任务是缩小这个数据集的大小，只包括我们需要的那些列。但首先我们可以检查它以查看现有的列名称是什么，以及每个变量是如何编码的。为此，我们可以首先调用：
 ```{r}
 colnames(edbfdata)
 ```
@@ -116,9 +116,9 @@ The below set of commands takes the event descriptions, extracts individual word
 ```{r}
 #get year and word for every word and date pair in the dataset
 tidy_des <- evdes %>% 
-  mutate(desc = tolower(description)) %>%
-  unnest_tokens(word, desc) %>%
-  filter(str_detect(word, "[a-z]"))
+  mutate(desc = tolower(description)) %>% #将 description 变量（文本）转换为小写，以避免大小写影响后续分析
+  unnest_tokens(word, desc) %>% #拆分 `desc` 中的文本，按单词进行分割
+  filter(str_detect(word, "[a-z]")) #过滤掉不包含字母的“单词”
 
 ```
 
@@ -135,10 +135,14 @@ Instead of by year, we might have wanted to sort our text into "genre." Here, we
 Alternatively, we might be interested in the contributions of individual authors over time. Were this the case, we could have sorted our text into documents by author. In this case, each "document" would represent all the words included in event descriptions for events by the given author (many of whom do have multiple appearances over time or in the same festival for a given year).
  
 We can yet tidy this further, though. First we'll remove all stop words and then we'll remove all apostrophes:
-
+去除停用词（stop words），以提高文本分析的质量
 ```{r}
 tidy_des <- tidy_des %>%
     filter(!word %in% stop_words$word)
+#stop_words 是 tidytext 包提供的英语停用词表，其中包含 "the"、"is"、"and"、"of" 等高频但信息量较低的单词。
+#!word %in% stop_words$word：
+# 检查 word 是否在 stop_words$word 这个列表中。
+# ! 取反，表示保留不在停用词表中的单词。
 ```
 
 We see that the number of rows in our dataset reduces by about half to ~223k rows. This is natural since a large proportion of any string will contain many so-called "stop words". We can see what these stop words are by typing:
@@ -157,6 +161,7 @@ tidy_des %>%
 ```
 
 We can see that one of the most common words is "rsquo," which is an HTML encoding for an apostrophe. Clearly we need to clean the data a bit more. This is a common issue in large-n text analysis and is a key step if you want to conduct reliably robust forms of text analysis. We'll have another go using the the filter command, specifying that we only keep the words that are not included in the string of words `r c("rsquo", "em", "ndash", "nbsp", "lsquo") `.
+我们可以看到，最常见的单词之一是“rsquo”，这是撇号的 HTML 编码。显然，我们需要进一步清理数据。这是 文本分析中的一个常见问题，如果您想进行可靠的稳健文本分析，这是一个关键步骤。我们将再次使用 filter 命令，指定我们只保留未包含在字符串 `r c("rsquo", "em", "ndash", "nbsp", "lsquo") 中的单词。
 
 ```{r}
 remove_reg <- c("&amp;","&lt;","&gt;","<p>", "</p>","&rsquo", "&lsquo;",  "&#39;", "<strong>", "</strong>", "rsquo", "em", "ndash", "nbsp", "lsquo", "strong")
@@ -193,6 +198,15 @@ Okay, now we have our list of words, and the number of times they appear, we can
 ```{r}
 edbf_term_counts$womword <- as.integer(grepl("women|feminist|feminism|gender|harassment|sexism|sexist", 
                                             x = edbf_term_counts$word))
+#grepl() 用于检查字符串是否匹配某个模式。
+#pattern = "women|feminist|feminism|gender|harassment|sexism|sexist"
+#这是一个正则表达式，表示只要 word 包含其中任何一个词，就返回 TRUE
+
+#as.integer(grepl(...))
+#grepl() 返回 TRUE 或 FALSE，as.integer() 将其转换为 0 或 1：
+#匹配成功 → 1；匹配失败 → 0
+
+#edbf_term_counts$womword在edbf_term_counts中创建新的一列womword
 ```
 
 ```{r}
@@ -213,10 +227,15 @@ Are the keywords we used precise enough? If not, what would you change?
 #get counts by year and word
 edbf_counts <- edbf_term_counts %>%
   group_by(year) %>%
-  mutate(year_total = sum(n)) %>%
-  filter(womword==1) %>%
+  mutate(year_total = sum(n)) %>% #计算每年所有单词的总出现次数，并添加新列 year_total
+  filter(womword==1) %>% #仅保留 womword == 1 的行，即只保留与性别相关的词
   summarise(sum_wom = sum(n),
-            year_total= min(year_total))
+            year_total= min(year_total)) 
+#sum_wom = sum(n): 计算该年性别相关词的总频次。
+#year_total = min(year_total):
+  #year_total 是 mutate() 生成的，但 summarise() 需要选取一个值。
+  #min(year_total) 确保正确提取该年的 year_total（实际上这里 max() 也可以，因其值相同）
+
 ```
 
 ```{r}
@@ -238,7 +257,7 @@ ggplot(edbf_counts, aes(year, sum_wom / year_total, group=1)) +
 ```
 
 We can add visual guides to draw attention to apparent changes in these data. Here, we might wish to signal the year of the #MeToo movement in 2017.
-
+标记 2017 年是 #MeToo 运动的一年
 ```{r, warning=F}
 ggplot(edbf_counts, aes(year, sum_wom / year_total, group=1)) +
   geom_line() +
@@ -288,6 +307,7 @@ gendes$name <- sub(" .*", "", gendes$artist)
 A set of packages called <tt>gender</tt> and <tt>genderdata</tt> used to make the process of predicting gender based on a given individual's name pretty straightforward. This technique worked with reference to  U.S. Social Security Administration baby name data. 
 
 Given that the most common gender associated with a given name changes over time, the function also allows us to specify the range of years for the cohort in question whose gender we are inferring. Given that we don't know how wide the cohort of artists is that we have here, we could specify a broad range of 1920-2000.
+
 
 ```{r, eval =F}
 genpred <- gender(gendes$name,
@@ -459,7 +479,45 @@ ggplot(edbf_counts_both, aes(year, sum_wom / year_total, group=genre, color=genr
 
 ```{r}
 # show me
+edbf_race<-edbfdata%>%
+  select(year,)
+
+edbf_term_counts$raceword <- as.integer(grepl("race|ethnicity|black|white|asian|latino|african|caucasian|hispanic|minority", 
+                                            x = edbf_term_counts$word))
+
+#race_keywords <- c("race", "ethnicity", "black", "white", "asian", "latino", "african", "caucasian", "hispanic", "minority")
 ```
+
+```{r}
+head(edbf_term_counts)
+```
+
+```{r}
+edbf_racecount <- edbf_term_counts %>%
+  group_by(year) %>%
+  mutate(year_total = sum(n)) %>% 
+  filter(raceword==1) %>% 
+  summarise(sum_race = sum(n),
+            year_total= min(year_total)) 
+
+```
+
+```{r}
+head(edbf_racecount)
+```
+
+
+```{r, warning=FALSE}
+ggplot(edbf_racecount, aes(year, sum_race / year_total, group=factor(1))) +
+  geom_line() +
+  xlab("Year") +
+  ylab("% race-related words") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = c(0, 0), limits = c(0, NA)) +
+  theme_tufte(base_family = "Helvetica") 
+
+```
+
 
 
 3. Knit your document (click 'Knit' towards the top of your screen) when you've completed your exercise. It should create an html output file. 
